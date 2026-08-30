@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+# Keep the Composer distribution lean: exclude everything that a consumer
+# installing the plugin via `composer require` does not need at runtime.
+/Tests                  export-ignore
+/.gitattributes         export-ignore
+/.gitignore             export-ignore
+/phpstan.neon.dist      export-ignore
+/phpunit.xml.dist       export-ignore
+/pint.json              export-ignore

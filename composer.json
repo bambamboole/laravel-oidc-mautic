@@ -1,0 +1,71 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "bambamboole/laravel-oidc-mautic",
+    "description": "Mautic plugin that signs users in through any OpenID Connect provider, with claim-based access restrictions and role mapping",
+    "type": "mautic-plugin",
+    "license": "MIT",
+    "keywords": ["mautic", "mautic-plugin", "oidc", "openid-connect", "oauth2", "sso", "login"],
+    "authors": [
+        {
+            "name": "Manuel Christlieb",
+            "email": "manuel@christlieb.eu"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "ext-json": "*",
+        "guzzlehttp/guzzle": "^7.2",
+        "mautic/core-lib": "^7.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.16",
+        "phpstan/phpstan": "^2.0",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpunit/phpunit": "^10.5 || ^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "MauticPlugin\\LaravelOidcBundle\\": ""
+        },
+        "exclude-from-classmap": ["/Tests/"]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MauticPlugin\\LaravelOidcBundle\\Tests\\": "Tests/"
+        }
+    },
+    "homepage": "https://github.com/bambamboole/laravel-oidc-mautic",
+    "support": {
+        "issues": "https://github.com/bambamboole/laravel-oidc/issues",
+        "source": "https://github.com/bambamboole/laravel-oidc-mautic"
+    },
+    "extra": {
+        "install-directory-name": "LaravelOidcBundle"
+    },
+    "repositories": [
+        {"type": "git", "url": "https://github.com/mautic/FOSOAuthServerBundle.git"},
+        {"type": "git", "url": "https://github.com/mautic/SpBundle.git"},
+        {"type": "git", "url": "https://github.com/mautic/SymfonyBridgeBundle.git"}
+    ],
+    "scripts": {
+        "analyse": "./vendor/bin/phpstan analyse",
+        "check": [
+            "@test:lint",
+            "@analyse",
+            "@test"
+        ],
+        "lint": "./vendor/bin/pint",
+        "test:lint": "./vendor/bin/pint --test",
+        "test": "./vendor/bin/phpunit"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": true,
+            "symfony/flex": false,
+            "mautic/core-composer-plugin": false
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

@@ -1,0 +1,35 @@
+{% block _config_laraveloidcconfig_widget %}
+<div class="panel panel-primary">
+    <div class="panel-heading">
+        <h3 class="panel-title">{{ 'mautic.config.tab.laraveloidcconfig'|trans }}</h3>
+    </div>
+    <div class="panel-body">
+        <div class="alert alert-info">{{ 'plugin.laraveloidc.config.hint'|trans|raw }}</div>
+        <div class="row">
+            <div class="col-md-12">{{ form_row(form.oidc_scopes) }}</div>
+        </div>
+        <hr />
+        <div class="row">
+            <div class="col-md-6">{{ form_row(form.oidc_username_claim) }}</div>
+            <div class="col-md-6">{{ form_row(form.oidc_email_claim) }}</div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">{{ form_row(form.oidc_first_name_claim) }}</div>
+            <div class="col-md-6">{{ form_row(form.oidc_last_name_claim) }}</div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">{{ form_row(form.oidc_timezone_claim) }}</div>
+            <div class="col-md-6">{{ form_row(form.oidc_locale_claim) }}</div>
+        </div>
+        <hr />
+        <div class="row">
+            <div class="col-md-12">{{ form_row(form.oidc_required_claims) }}</div>
+        </div>
+        <hr />
+        <div class="row">
+            <div class="col-md-6">{{ form_row(form.oidc_role_claim) }}</div>
+            <div class="col-md-6">{{ form_row(form.oidc_role_mapping) }}</div>
+        </div>
+    </div>
+</div>
+{% endblock _config_laraveloidcconfig_widget %}
