@@ -5,7 +5,7 @@ declare(strict_types=1);
 return [
     'name' => 'OpenID Connect Login',
     'description' => 'Signs users in through an OpenID Connect provider and restricts access by claims.',
-    'version' => '0.19.0', // x-release-please-version
+    'version' => '0.20.0', // x-release-please-version
     'author' => 'Manuel Christlieb',
     'parameters' => [
         'oidc_scopes' => 'openid profile email',
