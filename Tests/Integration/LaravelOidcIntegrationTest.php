@@ -31,6 +31,7 @@ final class LaravelOidcIntegrationTest extends TestCase
         'authorization_endpoint' => 'https://idp.test/oauth/authorize',
         'token_endpoint' => 'https://idp.test/oauth/token',
         'userinfo_endpoint' => 'https://idp.test/oauth/userinfo',
+        'jwks_uri' => 'https://idp.test/.well-known/jwks.json',
     ];
 
     private const TOKEN = ['token_type' => 'Bearer', 'access_token' => 'access-token'];

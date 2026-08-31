@@ -19,7 +19,8 @@ final class MetadataResolver
     public function resolve(string $issuer): ProviderMetadata
     {
         $issuer = rtrim(trim($issuer), '/');
-        $cacheKey = 'oidc_metadata_'.md5($issuer);
+        // v2: cached v1 documents predate jwks_uri and would fail hydration.
+        $cacheKey = 'oidc_metadata_v2_'.md5($issuer);
 
         $cached = $this->cache?->get($cacheKey, self::CACHE_TTL_SECONDS);
 

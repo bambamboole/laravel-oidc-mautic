@@ -11,6 +11,7 @@ final readonly class ProviderMetadata
         public string $authorizationEndpoint,
         public string $tokenEndpoint,
         public string $userinfoEndpoint,
+        public string $jwksUri,
     ) {}
 
     /**
@@ -20,7 +21,7 @@ final readonly class ProviderMetadata
     {
         $endpoints = [];
 
-        foreach (['issuer', 'authorization_endpoint', 'token_endpoint', 'userinfo_endpoint'] as $key) {
+        foreach (['issuer', 'authorization_endpoint', 'token_endpoint', 'userinfo_endpoint', 'jwks_uri'] as $key) {
             $value = $document[$key] ?? null;
 
             if (! is_string($value) || $value === '') {
@@ -35,6 +36,7 @@ final readonly class ProviderMetadata
             $endpoints['authorization_endpoint'],
             $endpoints['token_endpoint'],
             $endpoints['userinfo_endpoint'],
+            $endpoints['jwks_uri'],
         );
     }
 
@@ -48,6 +50,7 @@ final readonly class ProviderMetadata
             'authorization_endpoint' => $this->authorizationEndpoint,
             'token_endpoint' => $this->tokenEndpoint,
             'userinfo_endpoint' => $this->userinfoEndpoint,
+            'jwks_uri' => $this->jwksUri,
         ];
     }
 }

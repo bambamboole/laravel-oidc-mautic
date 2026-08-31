@@ -20,6 +20,7 @@ final class MetadataResolverTest extends TestCase
         'authorization_endpoint' => 'https://idp.test/oauth/authorize',
         'token_endpoint' => 'https://idp.test/oauth/token',
         'userinfo_endpoint' => 'https://idp.test/oauth/userinfo',
+        'jwks_uri' => 'https://idp.test/.well-known/jwks.json',
     ];
 
     public function test_it_reads_endpoints_from_the_discovery_document(): void
