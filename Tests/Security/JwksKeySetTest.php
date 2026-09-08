@@ -10,11 +10,14 @@ use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
 use Mautic\CoreBundle\Helper\CacheStorageHelper;
 use MauticPlugin\LaravelOidcBundle\Security\JwksKeySet;
+use MauticPlugin\LaravelOidcBundle\Tests\Support\BuildsInMemoryCache;
 use MauticPlugin\LaravelOidcBundle\Tests\Support\TestIdp;
 use PHPUnit\Framework\TestCase;
 
 final class JwksKeySetTest extends TestCase
 {
+    use BuildsInMemoryCache;
+
     public function test_it_builds_a_pem_that_verifies_the_idp_signature(): void
     {
         $idp = TestIdp::make();
@@ -41,6 +44,42 @@ final class JwksKeySetTest extends TestCase
         $keySet = new JwksKeySet(new Client(['handler' => HandlerStack::create($mock)]), $cache);
 
         self::assertSame(['cached-kid' => 'cached-pem'], $keySet->pemKeysFor('https://idp.test/.well-known/jwks.json'));
+        self::assertNull($mock->getLastRequest());
+    }
+
+    public function test_a_refresh_bypasses_the_cache_and_replaces_it(): void
+    {
+        $idp = TestIdp::make();
+        $store = ['oidc_jwks_'.md5('https://idp.test/.well-known/jwks.json') => ['stale-kid' => 'stale-pem']];
+        $mock = new MockHandler([new Response(200, [], json_encode($idp->jwksDocument(), JSON_THROW_ON_ERROR))]);
+        $keySet = new JwksKeySet(new Client(['handler' => HandlerStack::create($mock)]), $this->inMemoryCache($store));
+
+        $pems = $keySet->refreshedPemKeysFor('https://idp.test/.well-known/jwks.json');
+
+        self::assertIsArray($pems);
+        self::assertArrayHasKey($idp->kid, $pems);
+        self::assertSame($pems, $store['oidc_jwks_'.md5('https://idp.test/.well-known/jwks.json')]);
+        self::assertSame($pems, $keySet->pemKeysFor('https://idp.test/.well-known/jwks.json'));
+    }
+
+    public function test_a_refresh_is_not_repeated_within_the_cooldown(): void
+    {
+        $idp = TestIdp::make();
+        $store = [];
+        $mock = new MockHandler([new Response(200, [], json_encode($idp->jwksDocument(), JSON_THROW_ON_ERROR))]);
+        $keySet = new JwksKeySet(new Client(['handler' => HandlerStack::create($mock)]), $this->inMemoryCache($store));
+
+        self::assertIsArray($keySet->refreshedPemKeysFor('https://idp.test/.well-known/jwks.json'));
+        self::assertNull($keySet->refreshedPemKeysFor('https://idp.test/.well-known/jwks.json'));
+        self::assertCount(0, $mock);
+    }
+
+    public function test_there_is_nothing_to_refresh_without_a_cache(): void
+    {
+        $mock = new MockHandler([]);
+        $keySet = new JwksKeySet(new Client(['handler' => HandlerStack::create($mock)]));
+
+        self::assertNull($keySet->refreshedPemKeysFor('https://idp.test/.well-known/jwks.json'));
         self::assertNull($mock->getLastRequest());
     }
 

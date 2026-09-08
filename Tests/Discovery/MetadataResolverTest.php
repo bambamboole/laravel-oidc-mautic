@@ -59,6 +59,41 @@ final class MetadataResolverTest extends TestCase
         (new MetadataResolver(new Client(['handler' => HandlerStack::create($mock)]), $cache))->resolve('https://idp.test');
     }
 
+    public function test_it_rejects_an_issuer_that_is_not_served_over_https(): void
+    {
+        $mock = new MockHandler([]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('https://');
+
+        try {
+            (new MetadataResolver(new Client(['handler' => HandlerStack::create($mock)])))->resolve('http://idp.test');
+        } finally {
+            self::assertNull($mock->getLastRequest());
+        }
+    }
+
+    public function test_it_tolerates_plain_http_on_loopback_for_local_development(): void
+    {
+        $document = array_merge(self::DOCUMENT, ['issuer' => 'http://localhost:8000']);
+        $mock = new MockHandler([new Response(200, [], json_encode($document, JSON_THROW_ON_ERROR))]);
+
+        $metadata = (new MetadataResolver(new Client(['handler' => HandlerStack::create($mock)])))->resolve('http://localhost:8000/');
+
+        self::assertSame('http://localhost:8000', $metadata->issuer);
+    }
+
+    public function test_it_rejects_a_document_describing_another_issuer(): void
+    {
+        $document = array_merge(self::DOCUMENT, ['issuer' => 'https://evil.test']);
+        $mock = new MockHandler([new Response(200, [], json_encode($document, JSON_THROW_ON_ERROR))]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('names the issuer "https://evil.test"');
+
+        (new MetadataResolver(new Client(['handler' => HandlerStack::create($mock)])))->resolve('https://idp.test');
+    }
+
     public function test_it_rejects_a_document_without_endpoints(): void
     {
         $mock = new MockHandler([new Response(200, [], json_encode(['issuer' => 'https://idp.test'], JSON_THROW_ON_ERROR))]);

@@ -11,12 +11,15 @@ use GuzzleHttp\Psr7\Response;
 use MauticPlugin\LaravelOidcBundle\Discovery\ProviderMetadata;
 use MauticPlugin\LaravelOidcBundle\Security\ApiTokenValidator;
 use MauticPlugin\LaravelOidcBundle\Security\JwksKeySet;
+use MauticPlugin\LaravelOidcBundle\Tests\Support\BuildsInMemoryCache;
 use MauticPlugin\LaravelOidcBundle\Tests\Support\TestIdp;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 
 final class ApiTokenValidatorTest extends TestCase
 {
+    use BuildsInMemoryCache;
+
     private TestIdp $idp;
 
     protected function setUp(): void
@@ -96,6 +99,49 @@ final class ApiTokenValidatorTest extends TestCase
 
         $this->expectException(AuthenticationException::class);
         $this->expectExceptionMessage('unknown key');
+
+        $this->validator()->validate($token, $this->metadata(), ['test-client']);
+    }
+
+    public function test_it_picks_up_a_rotated_key_by_refreshing_the_cached_jwks(): void
+    {
+        // The cache still holds the key set from before the provider rotated keys.
+        $retired = TestIdp::make($this->idp->issuer, 'retired-key');
+        $retiredHttp = new Client(['handler' => HandlerStack::create(new MockHandler([
+            new Response(200, [], json_encode($retired->jwksDocument(), JSON_THROW_ON_ERROR)),
+        ]))]);
+        $store = ['oidc_jwks_'.md5($this->metadata()->jwksUri) => (new JwksKeySet($retiredHttp))->pemKeysFor($this->metadata()->jwksUri)];
+        $cache = $this->inMemoryCache($store);
+
+        $mock = new MockHandler([new Response(200, [], json_encode($this->idp->jwksDocument(), JSON_THROW_ON_ERROR))]);
+        $validator = new ApiTokenValidator(new JwksKeySet(new Client(['handler' => HandlerStack::create($mock)]), $cache));
+
+        $claims = $validator->validate($this->idp->accessToken(), $this->metadata(), ['test-client']);
+
+        self::assertSame('test-client', $claims['client_id']);
+        self::assertSame($this->metadata()->jwksUri, (string) $mock->getLastRequest()?->getUri());
+    }
+
+    public function test_it_rejects_a_token_that_would_need_a_second_refresh_within_the_cooldown(): void
+    {
+        $store = [];
+        $cache = $this->inMemoryCache($store);
+        $mock = new MockHandler([new Response(200, [], json_encode($this->idp->jwksDocument(), JSON_THROW_ON_ERROR))]);
+        $validator = new ApiTokenValidator(new JwksKeySet(new Client(['handler' => HandlerStack::create($mock)]), $cache));
+        $validator->validate($this->idp->accessToken(), $this->metadata(), ['test-client']);
+
+        $this->expectException(AuthenticationException::class);
+        $this->expectExceptionMessage('unknown key');
+
+        $validator->validate($this->idp->accessToken(kid: 'rotated-away'), $this->metadata(), ['test-client']);
+    }
+
+    public function test_it_rejects_a_token_issued_in_the_future(): void
+    {
+        $token = $this->idp->accessToken(['iat' => time() + 600]);
+
+        $this->expectException(AuthenticationException::class);
+        $this->expectExceptionMessage('future');
 
         $this->validator()->validate($token, $this->metadata(), ['test-client']);
     }

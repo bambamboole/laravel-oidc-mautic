@@ -17,6 +17,7 @@ use Mautic\ApiBundle\Entity\oAuth2\Client;
 use Mautic\CoreBundle\Helper\CacheStorageHelper;
 use Mautic\CoreBundle\Helper\CoreParametersHelper;
 use Mautic\PluginBundle\Helper\IntegrationHelper;
+use MauticPlugin\LaravelOidcBundle\Claims\ClaimPath;
 use MauticPlugin\LaravelOidcBundle\Discovery\MetadataResolver;
 use MauticPlugin\LaravelOidcBundle\Integration\LaravelOidcIntegration;
 use Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface;
@@ -29,7 +30,9 @@ use Symfony\Component\Security\Core\User\UserProviderInterface;
  * token issued by the OpenID Connect provider authenticates against the API.
  * Locally stored Mautic OAuth tokens keep taking precedence; only when the
  * lookup misses and the bearer token is a JWT from the configured issuer is a
- * transient access token synthesized for the configured API user.
+ * transient access token synthesized. It acts as the Mautic user named by the
+ * configured user claim when the token carries one, and otherwise as the
+ * shared API user.
  */
 class OidcBearerTokenStorage extends OAuthStorage
 {
@@ -58,34 +61,60 @@ class OidcBearerTokenStorage extends OAuthStorage
 
     private function accessTokenFromProviderJwt(string $token): ?TokenInterface
     {
-        $apiUserEmail = $this->coreParametersHelper->get('oidc_api_user_email');
+        $apiUserEmail = $this->trimmedParameter('oidc_api_user_email');
+        $userClaim = $this->trimmedParameter('oidc_api_user_claim');
         $allowedClientIds = $this->coreParametersHelper->get('oidc_api_allowed_client_ids');
         $allowedClientIds = array_values(array_filter(is_array($allowedClientIds) ? $allowedClientIds : [], is_string(...)));
 
-        if (! is_string($apiUserEmail) || trim($apiUserEmail) === '' || $allowedClientIds === [] || substr_count($token, '.') !== 2) {
+        if (($apiUserEmail === null && $userClaim === null) || $allowedClientIds === [] || substr_count($token, '.') !== 2) {
             return null;
         }
 
         $issuer = $this->issuer();
+        $userProvider = $this->userProvider;
 
-        if ($issuer === null || $this->userProvider === null) {
+        if ($issuer === null || $userProvider === null) {
             return null;
         }
 
-        $audience = $this->coreParametersHelper->get('oidc_api_audience');
-        $audience = is_string($audience) && trim($audience) !== '' ? trim($audience) : null;
+        $audience = $this->trimmedParameter('oidc_api_audience');
 
         try {
             $httpClient = $this->httpClient ??= new HttpClient;
             $metadata = (new MetadataResolver($httpClient, $this->cacheStorageHelper))->resolve($issuer);
             $claims = (new ApiTokenValidator(new JwksKeySet($httpClient, $this->cacheStorageHelper)))
                 ->validate($token, $metadata, $allowedClientIds, $audience);
-            $user = $this->userProvider->loadUserByIdentifier(trim($apiUserEmail));
+            $user = $userProvider->loadUserByIdentifier($this->userIdentifierFor($claims, $userClaim, $apiUserEmail));
         } catch (AuthenticationException) {
             return null;
         }
 
         return $this->synthesizeAccessToken($token, $user, $claims);
+    }
+
+    /**
+     * A token carrying the configured user claim acts as that person, so API
+     * calls are audited under their own account; a token without it — such as
+     * one from a client_credentials grant — falls back to the shared API user.
+     *
+     * @param  array<string, mixed>  $claims
+     */
+    private function userIdentifierFor(array $claims, ?string $userClaim, ?string $apiUserEmail): string
+    {
+        $identifier = $userClaim === null ? '' : ClaimPath::readString($claims, $userClaim);
+
+        if ($identifier !== '') {
+            return $identifier;
+        }
+
+        return $apiUserEmail ?? throw new AuthenticationException('The API token names no user and no shared API user is configured.');
+    }
+
+    private function trimmedParameter(string $name): ?string
+    {
+        $value = $this->coreParametersHelper->get($name);
+
+        return is_string($value) && trim($value) !== '' ? trim($value) : null;
     }
 
     /**

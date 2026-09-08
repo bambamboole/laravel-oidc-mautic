@@ -21,6 +21,7 @@ use MauticPlugin\LaravelOidcBundle\Security\OidcBearerTokenStorage;
 use MauticPlugin\LaravelOidcBundle\Tests\Support\TestIdp;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Security\Core\Exception\UserNotFoundException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 
@@ -112,11 +113,65 @@ final class OidcBearerTokenStorageTest extends TestCase
         self::assertNull($this->storage($parameters)->getAccessToken($unbound));
     }
 
+    public function test_it_maps_the_configured_user_claim_to_that_mautic_user(): void
+    {
+        $jane = (new User)->setUsername('jane@example.com');
+        $this->userProvider->method('loadUserByIdentifier')->with('jane@example.com')->willReturn($jane);
+        $jwt = $this->idp->accessToken(['client_id' => 'artisan-os', 'email' => 'jane@example.com']);
+
+        $accessToken = $this->storage($this->parametersWithUserClaim())->getAccessToken($jwt);
+
+        self::assertInstanceOf(AccessToken::class, $accessToken);
+        self::assertSame($jane, $accessToken->getUser());
+    }
+
+    public function test_it_rejects_a_token_whose_user_claim_matches_no_mautic_user(): void
+    {
+        $this->userProvider->method('loadUserByIdentifier')->with('stranger@example.com')->willThrowException(new UserNotFoundException);
+        $jwt = $this->idp->accessToken(['client_id' => 'artisan-os', 'email' => 'stranger@example.com']);
+
+        self::assertNull($this->storage($this->parametersWithUserClaim())->getAccessToken($jwt));
+    }
+
+    public function test_a_token_without_the_user_claim_falls_back_to_the_api_user(): void
+    {
+        $this->userProvider->method('loadUserByIdentifier')->with('api@example.com')->willReturn($this->apiUser);
+        $jwt = $this->idp->accessToken(['client_id' => 'artisan-os']);
+
+        $accessToken = $this->storage($this->parametersWithUserClaim())->getAccessToken($jwt);
+
+        self::assertInstanceOf(AccessToken::class, $accessToken);
+        self::assertSame($this->apiUser, $accessToken->getUser());
+    }
+
+    public function test_a_token_without_the_user_claim_is_rejected_when_no_api_user_is_configured(): void
+    {
+        $this->userProvider->expects(self::never())->method('loadUserByIdentifier');
+        $jwt = $this->idp->accessToken(['client_id' => 'artisan-os']);
+
+        $storage = $this->storage($this->parametersWithUserClaim(['oidc_api_user_email' => null]));
+
+        self::assertNull($storage->getAccessToken($jwt));
+    }
+
     public function test_it_ignores_opaque_tokens_that_are_not_jwts(): void
     {
         $this->integrationHelper->expects(self::never())->method('getIntegrationObject');
 
         self::assertNull($this->storage()->getAccessToken('opaque-token'));
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function parametersWithUserClaim(array $overrides = []): array
+    {
+        return array_merge([
+            'oidc_api_user_email' => 'api@example.com',
+            'oidc_api_user_claim' => 'email',
+            'oidc_api_allowed_client_ids' => ['artisan-os'],
+        ], $overrides);
     }
 
     /**

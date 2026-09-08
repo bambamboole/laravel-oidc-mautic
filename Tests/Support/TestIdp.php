@@ -6,7 +6,7 @@ namespace MauticPlugin\LaravelOidcBundle\Tests\Support;
 
 /**
  * A miniature identity provider for tests: one RSA keypair, its JWKS document,
- * and RS256-signed access tokens over arbitrary claims.
+ * and RS256-signed ID and access tokens over arbitrary claims.
  */
 final class TestIdp
 {
@@ -84,6 +84,21 @@ final class TestIdp
         openssl_sign($payload, $signature, $this->privateKey, OPENSSL_ALGO_SHA256);
 
         return $payload.'.'.self::base64UrlEncode($signature);
+    }
+
+    /**
+     * @param  array<string, mixed>  $claims  merged over sane defaults (iss, sub, aud, exp, iat); a null value drops the claim
+     */
+    public function idToken(array $claims = [], string $clientId = 'client-id', ?string $nonce = null): string
+    {
+        $claims = array_merge([
+            'sub' => 'user-1',
+            'aud' => $clientId,
+            'iat' => time(),
+            'client_id' => null,
+        ], $nonce === null ? [] : ['nonce' => $nonce], $claims);
+
+        return $this->accessToken(array_filter($claims, static fn (mixed $value): bool => $value !== null));
     }
 
     public function tokenWithBrokenSignature(): string

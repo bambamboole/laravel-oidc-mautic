@@ -19,6 +19,7 @@ return [
         'oidc_role_claim' => null,
         'oidc_role_mapping' => [],
         'oidc_api_user_email' => null,
+        'oidc_api_user_claim' => null,
         'oidc_api_allowed_client_ids' => [],
         'oidc_api_audience' => null,
     ],

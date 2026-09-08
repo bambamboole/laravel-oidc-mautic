@@ -4,7 +4,8 @@ A Mautic 7 plugin that signs users in through any OpenID Connect provider — su
 [`bambamboole/laravel-oidc`](https://github.com/bambamboole/laravel-oidc) — and decides who may enter by
 looking at the claims the provider returns.
 
-- Authorization code flow with PKCE and `state`, endpoints resolved from the issuer's discovery document.
+- Authorization code flow with PKCE, `state`, and `nonce`; endpoints resolved from the issuer's discovery document.
+- The ID token's signature, issuer, audience, lifetime, and nonce are verified before the userinfo response is trusted.
 - Users are matched by username (the `email` claim by default); optionally created on first login.
 - **Required claims** gate every login: each configured `claim=value` line must match the userinfo response.
 - **Role mapping** translates a provider role claim into a Mautic role; unmatched new users get the default role.
@@ -55,9 +56,35 @@ Support => 2
 
 The first matching line wins. Existing users keep their role when nothing matches.
 
+## API access with provider tokens
+
+A Bearer access token issued by the provider can call the Mautic API once it passes the same signature
+and issuer checks as the ID token. Configure this under **Settings → Configuration → OpenID Connect**:
+
+- **API client IDs**: the OAuth clients whose tokens are accepted, one per line. Leave empty to disable.
+- **API user email**: the Mautic user that tokens act as when they carry no user claim, for example
+  tokens from a `client_credentials` grant.
+- **API user claim**: optional; a claim such as `email` naming the Mautic user a token acts as, so every
+  call is audited under that person. A token carrying the claim must match an existing user.
+- **API audience**: optional; when set, the token's `aud` claim must contain it.
+
+Locally issued Mautic OAuth tokens keep working and take precedence.
+
+## Security notes
+
+- The issuer must be an `https://` URL; plain `http://` is tolerated on `localhost` only, for development.
+  The discovery document must name the configured issuer.
+- Every login verifies the `state` stored for that browser session and the `nonce` echoed in the ID token,
+  then consumes both, so a callback cannot be replayed or injected into a session that started no login.
+- ID and access tokens must be signed with RS256 by a key from the provider's JWKS; `iss`, `exp`, `nbf`,
+  and `iat` are checked with 60 seconds of leeway. The `sub` claim of the userinfo response must match
+  the ID token before any claim from it is used.
+- JWKS and discovery documents are cached for an hour. A token signed with an unknown key ID triggers one
+  fresh JWKS fetch, at most once per minute, so a key rotation takes effect immediately.
+- Rejected logins name the unmet required claims in the error message. This helps administrators debug
+  their configuration but also tells a rejected user which claims would have granted access.
+
 ## Notes
 
-- The plugin trusts the userinfo endpoint reached with the freshly issued access token over TLS; it does
-  not validate the ID token signature itself.
 - Mautic requires a first and last name: when the provider sends neither `given_name`/`family_name`
   nor a `name` claim, the local part of the username is used for both.

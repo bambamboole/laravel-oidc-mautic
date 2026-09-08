@@ -11,6 +11,8 @@ final class JwksKeySet
 {
     private const CACHE_TTL_SECONDS = 3600;
 
+    private const REFRESH_COOLDOWN_SECONDS = 60;
+
     public function __construct(
         private readonly ClientInterface $httpClient,
         private readonly ?CacheStorageHelper $cache = null,
@@ -21,15 +23,39 @@ final class JwksKeySet
      */
     public function pemKeysFor(string $jwksUri): array
     {
-        $cacheKey = 'oidc_jwks_'.md5($jwksUri);
-
-        $cached = $this->cache?->get($cacheKey, self::CACHE_TTL_SECONDS);
+        $cached = $this->cache?->get($this->cacheKey($jwksUri), self::CACHE_TTL_SECONDS);
 
         if (is_array($cached) && $cached !== []) {
             /** @var array<string, string> $cached */
             return $cached;
         }
 
+        return $this->fetch($jwksUri);
+    }
+
+    /**
+     * Fetches the JWKS past the cache so a key the provider rotated in since
+     * the last fetch becomes usable at once. Returns null when nothing fresher
+     * is to be had: without a cache every lookup already fetches, and the JWKS
+     * is not fetched twice within the cooldown, so a flood of tokens naming
+     * unknown keys cannot turn the provider's JWKS endpoint into a target.
+     *
+     * @return array<string, string>|null signing key PEMs keyed by kid
+     */
+    public function refreshedPemKeysFor(string $jwksUri): ?array
+    {
+        if ($this->cache === null || $this->cache->get($this->cooldownKey($jwksUri), self::REFRESH_COOLDOWN_SECONDS) !== false) {
+            return null;
+        }
+
+        return $this->fetch($jwksUri);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function fetch(string $jwksUri): array
+    {
         $body = $this->httpClient
             ->request('GET', $jwksUri, ['http_errors' => true])
             ->getBody()
@@ -63,9 +89,20 @@ final class JwksKeySet
             throw new \RuntimeException('The JWKS document contains no usable RSA signing key.');
         }
 
-        $this->cache?->set($cacheKey, $pems, self::CACHE_TTL_SECONDS);
+        $this->cache?->set($this->cacheKey($jwksUri), $pems, self::CACHE_TTL_SECONDS);
+        $this->cache?->set($this->cooldownKey($jwksUri), time(), self::REFRESH_COOLDOWN_SECONDS);
 
         return $pems;
+    }
+
+    private function cacheKey(string $jwksUri): string
+    {
+        return 'oidc_jwks_'.md5($jwksUri);
+    }
+
+    private function cooldownKey(string $jwksUri): string
+    {
+        return 'oidc_jwks_fetched_'.md5($jwksUri);
     }
 
     /**
