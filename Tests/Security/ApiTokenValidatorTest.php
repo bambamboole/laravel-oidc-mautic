@@ -105,7 +105,6 @@ final class ApiTokenValidatorTest extends TestCase
 
     public function test_it_picks_up_a_rotated_key_by_refreshing_the_cached_jwks(): void
     {
-        // The cache still holds the key set from before the provider rotated keys.
         $retired = TestIdp::make($this->idp->issuer, 'retired-key');
         $retiredHttp = new Client(['handler' => HandlerStack::create(new MockHandler([
             new Response(200, [], json_encode($retired->jwksDocument(), JSON_THROW_ON_ERROR)),

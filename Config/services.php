@@ -21,8 +21,6 @@ return function (ContainerConfigurator $configurator): void {
 
     $services->alias('mautic.integration.laraveloidc', LaravelOidcIntegration::class);
 
-    // Lets a provider-issued Bearer JWT authenticate API requests: the storage
-    // decoration synthesizes an access token when the local lookup misses.
     $services->set(OidcBearerTokenStorage::class)
         ->decorate('fos_oauth_server.storage')
         ->args([

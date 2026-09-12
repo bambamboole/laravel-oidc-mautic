@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace MauticPlugin\LaravelOidcBundle\Tests\Support;
 
-/**
- * A miniature identity provider for tests: one RSA keypair, its JWKS document,
- * and RS256-signed ID and access tokens over arbitrary claims.
- */
+/** A miniature identity provider for tests. */
 final class TestIdp
 {
     private function __construct(

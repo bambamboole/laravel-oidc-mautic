@@ -17,11 +17,7 @@ final class IdTokenValidator
     }
 
     /**
-     * Validates an ID token as OpenID Connect Core 3.1.3.7 prescribes: the
-     * signature, issuer, and lifetime through the shared verifier, then the
-     * audience binding to this client, the authorized party, and the nonce
-     * echoed back from the authorization request. The returned claims carry
-     * a non-empty `sub`.
+     * OpenID Connect Core 3.1.3.7. The returned claims carry a non-empty `sub`.
      *
      * @param  string|null  $expectedNonce  the nonce sent with the authorization request, or null when none was sent
      * @return array<string, mixed>

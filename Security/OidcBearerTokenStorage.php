@@ -26,13 +26,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 
 /**
- * Decorates the OAuth storage so a standard `Authorization: Bearer` access
- * token issued by the OpenID Connect provider authenticates against the API.
- * Locally stored Mautic OAuth tokens keep taking precedence; only when the
- * lookup misses and the bearer token is a JWT from the configured issuer is a
- * transient access token synthesized. It acts as the Mautic user named by the
- * configured user claim when the token carries one, and otherwise as the
- * shared API user.
+ * Locally stored Mautic OAuth tokens take precedence; a provider JWT is only
+ * considered when the local lookup misses.
  */
 class OidcBearerTokenStorage extends OAuthStorage
 {

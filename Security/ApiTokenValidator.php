@@ -17,10 +17,7 @@ final class ApiTokenValidator
     }
 
     /**
-     * Validates an RFC 9068 access token issued by the configured provider and
-     * returns its claims. Beyond the signature, issuer, and lifetime checks the
-     * token must name an allowed client and, when an expected audience is
-     * given, its `aud` claim must contain it.
+     * RFC 9068.
      *
      * @param  list<string>  $allowedClientIds
      * @return array<string, mixed>

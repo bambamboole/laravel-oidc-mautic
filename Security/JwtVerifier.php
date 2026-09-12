@@ -68,8 +68,6 @@ final class JwtVerifier
     }
 
     /**
-     * The `aud` claim as a list, whether the provider sent a string or an array.
-     *
      * @param  array<string, mixed>  $claims
      * @return list<string>
      */

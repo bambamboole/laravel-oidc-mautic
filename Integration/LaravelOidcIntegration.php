@@ -157,10 +157,7 @@ class LaravelOidcIntegration extends AbstractSsoServiceIntegration
         return $this->requestStack->getSession();
     }
 
-    /**
-     * The nonce sent with the authorization request, consumed so it can only
-     * be matched once; null when the session holds none.
-     */
+    /** Consumed on read so a nonce cannot be matched twice. */
     private function popNonce(): ?string
     {
         if ($this->requestStack->getCurrentRequest()?->hasSession() !== true) {

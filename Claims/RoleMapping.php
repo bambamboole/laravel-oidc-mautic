@@ -38,7 +38,7 @@ final readonly class RoleMapping
     }
 
     /**
-     * The first mapped role id whose claim value is present; null when nothing matches.
+     * First matching line wins.
      *
      * @param  array<string, mixed>  $claims
      */
