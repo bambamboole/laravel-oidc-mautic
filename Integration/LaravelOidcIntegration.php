@@ -91,6 +91,16 @@ class LaravelOidcIntegration extends AbstractSsoServiceIntegration
         return is_string($scopes) && trim($scopes) !== '' ? trim($scopes) : 'openid profile email';
     }
 
+    /**
+     * AbstractIntegration returns hash('sha1', uniqid(mt_rand())) — time-derived
+     * and not a CSPRNG, so a guessable value guarding against CSRF on the
+     * callback. The verifier and the nonce beside it already use random_bytes().
+     */
+    public function getAuthLoginState(): string
+    {
+        return self::randomToken();
+    }
+
     public function getAuthLoginUrl(): string
     {
         $verifier = self::randomToken();

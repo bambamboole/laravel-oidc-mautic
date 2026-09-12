@@ -30,6 +30,18 @@
             <div class="col-md-6">{{ form_row(form.oidc_role_claim) }}</div>
             <div class="col-md-6">{{ form_row(form.oidc_role_mapping) }}</div>
         </div>
+        <hr />
+        <div class="row">
+            <div class="col-md-6">{{ form_row(form.oidc_api_user_email) }}</div>
+            <div class="col-md-6">{{ form_row(form.oidc_api_user_claim) }}</div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">{{ form_row(form.oidc_api_allowed_client_ids) }}</div>
+            <div class="col-md-6">{{ form_row(form.oidc_api_audience) }}</div>
+        </div>
+        {# Mautic renders this tab straight through this block: a field with no
+           row above is submitted empty and silently clears itself on save. #}
+        {{ form_rest(form) }}
     </div>
 </div>
 {% endblock _config_laraveloidcconfig_widget %}
